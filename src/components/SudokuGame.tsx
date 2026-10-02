@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
+
 import SudokuBoard from "./SudokuBoard";
 import NumberPad from "./NumberPad";
 
@@ -15,6 +21,12 @@ import {
   CellPosition,
 } from "@/types/sudoku";
 
+type WrongCell = {
+  row: number;
+  col: number;
+  value: number;
+};
+
 export default function SudokuGame() {
   const [difficulty, setDifficulty] =
     useState<Difficulty>("easy");
@@ -22,51 +34,225 @@ export default function SudokuGame() {
   const [board, setBoard] = useState<Board>([]);
   const [initialBoard, setInitialBoard] =
     useState<Board>([]);
-
   const [solution, setSolution] =
     useState<Board>([]);
 
   const [selectedCell, setSelectedCell] =
     useState<CellPosition | null>(null);
 
+  const [wrongCell, setWrongCell] =
+    useState<WrongCell | null>(null);
+
   const [mistakes, setMistakes] = useState(0);
-
   const [time, setTime] = useState(0);
-
   const [gameWon, setGameWon] = useState(false);
 
-  function startGame(level: Difficulty = difficulty) {
-    const { puzzle, solution } =
-      generatePuzzle(level);
+  /*
+   * -----------------------------------------
+   * Start / restart game
+   * -----------------------------------------
+   */
 
-    setBoard(puzzle);
-    setInitialBoard(
-      puzzle.map((row) => [...row])
-    );
-    setSolution(solution);
+  const startGame = useCallback(
+    (level: Difficulty = difficulty) => {
+      const {
+        puzzle,
+        solution: generatedSolution,
+      } = generatePuzzle(level);
 
-    setSelectedCell(null);
-    setMistakes(0);
-    setTime(0);
-    setGameWon(false);
-  }
+      setBoard(puzzle);
+
+      setInitialBoard(
+        puzzle.map((row) => [...row])
+      );
+
+      setSolution(generatedSolution);
+
+      setSelectedCell(null);
+      setWrongCell(null);
+      setMistakes(0);
+      setTime(0);
+      setGameWon(false);
+    },
+    [difficulty]
+  );
+
+  /*
+   * Start initial game
+   */
 
   useEffect(() => {
-    startGame();
-  }, []);
+    startGame("easy");
+  }, [startGame]);
+
+  /*
+   * -----------------------------------------
+   * Timer
+   * -----------------------------------------
+   */
 
   useEffect(() => {
-    if (gameWon) return;
+    if (gameWon || board.length === 0) {
+      return;
+    }
 
-    const timer = setInterval(() => {
-      setTime((prev) => prev + 1);
+    const timer = window.setInterval(() => {
+      setTime((previous) => previous + 1);
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [gameWon]);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [gameWon, board.length]);
 
-  function handleNumber(number: number) {
-    if (!selectedCell || gameWon) return;
+  /*
+   * -----------------------------------------
+   * Formatted time
+   * -----------------------------------------
+   */
+
+  const formattedTime = useMemo(() => {
+    const minutes = Math.floor(time / 60)
+      .toString()
+      .padStart(2, "0");
+
+    const seconds = (time % 60)
+      .toString()
+      .padStart(2, "0");
+
+    return `${minutes}:${seconds}`;
+  }, [time]);
+
+  /*
+   * -----------------------------------------
+   * Win check
+   * -----------------------------------------
+   */
+
+  const checkWin = useCallback(
+    (currentBoard: Board) => {
+      const solved = currentBoard.every(
+        (row, rowIndex) =>
+          row.every(
+            (value, colIndex) =>
+              value === solution[rowIndex][colIndex]
+          )
+      );
+
+      if (solved) {
+        setGameWon(true);
+      }
+    },
+    [solution]
+  );
+
+  /*
+   * -----------------------------------------
+   * Select cell
+   * -----------------------------------------
+   */
+
+  const handleCellClick = useCallback(
+    (row: number, col: number) => {
+      setSelectedCell({ row, col });
+      setWrongCell(null);
+    },
+    []
+  );
+
+  /*
+   * -----------------------------------------
+   * Number input
+   * -----------------------------------------
+   */
+
+  const handleNumber = useCallback(
+    (number: number) => {
+      if (
+        !selectedCell ||
+        gameWon ||
+        board.length === 0
+      ) {
+        return;
+      }
+
+      const { row, col } = selectedCell;
+
+      // Cannot edit initial cells
+      if (initialBoard[row][col] !== 0) {
+        return;
+      }
+
+      // Already solved cell
+      if (board[row][col] === number) {
+        return;
+      }
+
+      /*
+       * Wrong answer
+       */
+
+      if (number !== solution[row][col]) {
+        setMistakes((previous) => previous + 1);
+
+        setWrongCell({
+          row,
+          col,
+          value: number,
+        });
+
+        window.setTimeout(() => {
+          setWrongCell((current) => {
+            if (
+              current?.row === row &&
+              current?.col === col &&
+              current?.value === number
+            ) {
+              return null;
+            }
+
+            return current;
+          });
+        }, 700);
+
+        return;
+      }
+
+      /*
+       * Correct answer
+       */
+
+      const newBoard = board.map((currentRow) => [
+        ...currentRow,
+      ]);
+
+      newBoard[row][col] = number;
+
+      setBoard(newBoard);
+      setWrongCell(null);
+
+      checkWin(newBoard);
+    },
+    [
+      selectedCell,
+      gameWon,
+      board,
+      initialBoard,
+      solution,
+      checkWin,
+    ]
+  );
+
+  /*
+   * -----------------------------------------
+   * Delete number
+   * -----------------------------------------
+   */
+
+  const handleDelete = useCallback(() => {
+    if (!selectedCell || gameWon) {
+      return;
+    }
 
     const { row, col } = selectedCell;
 
@@ -74,103 +260,119 @@ export default function SudokuGame() {
       return;
     }
 
-    const newBoard = board.map((r) => [...r]);
-
-    if (number !== solution[row][col]) {
-      setMistakes((prev) => prev + 1);
+    if (board[row][col] === 0) {
       return;
     }
 
-    newBoard[row][col] = number;
-
-    setBoard(newBoard);
-
-    checkWin(newBoard);
-  }
-
-  function handleDelete() {
-    if (!selectedCell) return;
-
-    const { row, col } = selectedCell;
-
-    if (initialBoard[row][col] !== 0) {
-      return;
-    }
-
-    const newBoard = board.map((r) => [...r]);
+    const newBoard = board.map((currentRow) => [
+      ...currentRow,
+    ]);
 
     newBoard[row][col] = 0;
 
     setBoard(newBoard);
-  }
+    setWrongCell(null);
+  }, [
+    selectedCell,
+    gameWon,
+    initialBoard,
+    board,
+  ]);
 
-  function checkWin(currentBoard: Board) {
-    for (let row = 0; row < 9; row++) {
-      for (let col = 0; col < 9; col++) {
-        if (
-          currentBoard[row][col] !==
-          solution[row][col]
-        ) {
-          return;
-        }
-      }
-    }
+  /*
+   * -----------------------------------------
+   * Difficulty
+   * -----------------------------------------
+   */
 
-    setGameWon(true);
-  }
+  const handleDifficultyChange = useCallback(
+    (level: Difficulty) => {
+      setDifficulty(level);
+      startGame(level);
+    },
+    [startGame]
+  );
 
-  const formattedTime = `${Math.floor(
-    time / 60
-  )
-    .toString()
-    .padStart(2, "0")}:${(time % 60)
-    .toString()
-    .padStart(2, "0")}`;
+  /*
+   * -----------------------------------------
+   * Render
+   * -----------------------------------------
+   */
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8">
-      <div className="mx-auto max-w-md">
-        <h1 className="mb-6 text-center text-4xl font-bold">
-          Sudoku
-        </h1>
+  <main className="sudoku-game">
+    <div className="sudoku-container">
 
-        <div className="mb-4 flex justify-between rounded-lg bg-white p-4 shadow">
-          <div>
-            <p className="text-sm text-slate-500">
-              Time
-            </p>
-            <p className="font-bold">
-              {formattedTime}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-slate-500">
-              Mistakes
-            </p>
-            <p className="font-bold">
-              {mistakes}
-            </p>
-          </div>
-
-          <div>
-            <p className="text-sm text-slate-500">
-              Difficulty
-            </p>
-            <p className="font-bold capitalize">
-              {difficulty}
-            </p>
-          </div>
+      {/* Header */}
+      <header className="sudoku-header">
+        <div className="sudoku-logo">
+          <span>🧩</span>
         </div>
+
+        <h1>Sudoku</h1>
+
+        <p>
+          Complete the puzzle and challenge yourself
+        </p>
+      </header>
+
+      {/* Stats */}
+      <div className="sudoku-stats">
+
+        <div className="sudoku-stat sudoku-stat--border">
+          <span className="sudoku-stat__icon">⏱️</span>
+
+          <span className="sudoku-stat__label">
+            Time
+          </span>
+
+          <span className="sudoku-stat__value sudoku-stat__value--mono">
+            {formattedTime}
+          </span>
+        </div>
+
+        <div className="sudoku-stat sudoku-stat--border">
+          <span className="sudoku-stat__icon">❌</span>
+
+          <span className="sudoku-stat__label">
+            Mistakes
+          </span>
+
+          <span
+            className={`sudoku-stat__value ${
+              mistakes > 0
+                ? "sudoku-stat__value--danger"
+                : ""
+            }`}
+          >
+            {mistakes}
+          </span>
+        </div>
+
+        <div className="sudoku-stat">
+          <span className="sudoku-stat__icon">🎯</span>
+
+          <span className="sudoku-stat__label">
+            Level
+          </span>
+
+          <span className="sudoku-stat__value sudoku-stat__value--capitalize">
+            {difficulty}
+          </span>
+        </div>
+
+      </div>
+
+      {/* Game */}
+      <section className="sudoku-card">
 
         {board.length > 0 && (
           <SudokuBoard
             board={board}
             initialBoard={initialBoard}
             selectedCell={selectedCell}
-            onCellClick={(row, col) =>
-              setSelectedCell({ row, col })
-            }
+            wrongCell={wrongCell}
+            onCellClick={handleCellClick}
           />
         )}
 
@@ -179,36 +381,87 @@ export default function SudokuGame() {
           onDelete={handleDelete}
         />
 
-        <div className="mt-4 grid grid-cols-3 gap-2">
+      </section>
+
+      {/* Difficulty */}
+      <section className="sudoku-difficulty">
+
+        <p className="sudoku-section-label">
+          Difficulty
+        </p>
+
+        <div className="sudoku-difficulty__buttons">
           {(["easy", "medium", "hard"] as Difficulty[]).map(
-            (level) => (
-              <button
-                key={level}
-                onClick={() => {
-                  setDifficulty(level);
-                  startGame(level);
-                }}
-                className="rounded-lg bg-slate-800 py-2 text-sm font-medium text-white hover:bg-slate-700"
-              >
-                {level}
-              </button>
-            )
+            (level) => {
+              const active = difficulty === level;
+
+              return (
+                <button
+                  key={level}
+                  type="button"
+                  onClick={() =>
+                    handleDifficultyChange(level)
+                  }
+                  className={`sudoku-difficulty__button ${
+                    active
+                      ? "sudoku-difficulty__button--active"
+                      : ""
+                  }`}
+                >
+                  {level}
+                </button>
+              );
+            }
           )}
         </div>
 
-        <button
-          onClick={() => startGame()}
-          className="mt-3 w-full rounded-lg bg-green-600 py-3 font-semibold text-white hover:bg-green-700"
-        >
-          New Game
-        </button>
+      </section>
 
-        {gameWon && (
-          <div className="mt-4 rounded-lg bg-green-100 p-4 text-center font-bold text-green-700">
-            🎉 Congratulations! You solved the Sudoku!
+      {/* New Game */}
+      <button
+        type="button"
+        onClick={() => startGame()}
+        className="sudoku-new-game"
+      >
+        <span>↻</span>
+        New Game
+      </button>
+
+      {/* Win */}
+      {gameWon && (
+        <div className="sudoku-win">
+
+          <div className="sudoku-win__icon">
+            🎉
           </div>
-        )}
-      </div>
-    </main>
-  );
+
+          <h2>
+            Sudoku Solved!
+          </h2>
+
+          <p>
+            Great job! You completed the puzzle in{" "}
+            <strong>{formattedTime}</strong>.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => startGame()}
+            className="sudoku-win__button"
+          >
+            Play Again
+          </button>
+
+        </div>
+      )}
+
+      {/* Footer */}
+      <p className="sudoku-footer">
+        Take your time. Think ahead. 🧠
+      </p>
+
+    </div>
+  </main>
+);
+
 }

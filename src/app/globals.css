@@ -1,26 +1,679 @@
-@import "tailwindcss";
+/* =========================================
+   SUDOKU GAME
+========================================= */
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+.sudoku-game {
+  min-height: 100vh;
+  box-sizing: border-box;
+
+  padding: 24px 16px 40px;
+
+  background: #f1f5f9;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.sudoku-container {
+  width: 100%;
+  max-width: 448px;
+  margin: 0 auto;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* =========================================
+   HEADER
+========================================= */
+
+.sudoku-header {
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.sudoku-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 8px;
+  padding: 8px 16px;
+
+  border-radius: 16px;
+
+  background: #2563eb;
+
+  box-shadow:
+    0 10px 20px rgba(37, 99, 235, 0.2);
+}
+
+.sudoku-logo span {
+  font-size: 24px;
+}
+
+.sudoku-header h1 {
+  margin: 0;
+
+  color: #0f172a;
+
+  font-size: 36px;
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.sudoku-header p {
+  margin: 4px 0 0;
+
+  color: #64748b;
+
+  font-size: 14px;
+}
+
+/* =========================================
+   STATS
+========================================= */
+
+.sudoku-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  margin-bottom: 16px;
+
+  overflow: hidden;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.sudoku-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  padding: 16px 8px;
+}
+
+.sudoku-stat--border {
+  border-right: 1px solid #f1f5f9;
+}
+
+.sudoku-stat__icon {
+  margin-bottom: 4px;
+  font-size: 18px;
+}
+
+.sudoku-stat__label {
+  color: #94a3b8;
+
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.sudoku-stat__value {
+  margin-top: 4px;
+
+  color: #1e293b;
+
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.sudoku-stat__value--mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.sudoku-stat__value--danger {
+  color: #ef4444;
+}
+
+.sudoku-stat__value--capitalize {
+  text-transform: capitalize;
+}
+
+/* =========================================
+   GAME CARD
+========================================= */
+
+.sudoku-card {
+  padding: 12px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 24px;
+
+  background: #ffffff;
+
+  box-shadow:
+    0 20px 35px rgba(15, 23, 42, 0.08);
+}
+
+/* =========================================
+   SUDOKU BOARD
+========================================= */
+
+.sudoku-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(9, minmax(0, 1fr));
+
+  width: 100%;
+
+  gap: 1px;
+
+  overflow: hidden;
+
+  border: 2px solid #0f172a;
+  border-radius: 14px;
+
+  background: #0f172a;
+}
+
+.sudoku-cell {
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  min-width: 0;
+
+  aspect-ratio: 1 / 1;
+
+  margin: 0;
+  padding: 0;
+
+  border: 0;
+
+  background: #ffffff;
+  color: #334155;
+
+  font-family: inherit;
+  font-size: clamp(14px, 4vw, 18px);
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background-color 100ms ease,
+    color 100ms ease,
+    transform 100ms ease;
+}
+
+.sudoku-cell--empty {
+  background: #ffffff;
+  color: #334155;
+}
+
+.sudoku-cell--initial {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.sudoku-cell--related {
+  background: #eff6ff;
+  color: #334155;
+}
+
+.sudoku-cell--same {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.sudoku-cell--selected {
+  z-index: 10;
+
+  background: #3b82f6;
+  color: #ffffff;
+
+  box-shadow:
+    inset 0 0 0 2px #2563eb;
+}
+
+.sudoku-cell--wrong {
+  z-index: 20;
+
+  background: #fef2f2;
+  color: #dc2626;
+
+  animation: sudoku-shake 250ms ease-in-out;
+}
+
+.sudoku-cell--block-right {
+  margin-right: 2px;
+}
+
+.sudoku-cell--block-bottom {
+  margin-bottom: 2px;
+}
+
+.sudoku-cell:hover {
+  filter: brightness(0.97);
+}
+
+.sudoku-cell:active {
+  transform: scale(0.96);
+}
+
+.sudoku-cell:focus-visible {
+  outline: none;
+
+  box-shadow:
+    inset 0 0 0 2px #2563eb;
+}
+
+/* =========================================
+   DIFFICULTY
+========================================= */
+
+.sudoku-difficulty {
+  margin-top: 20px;
+}
+
+.sudoku-section-label {
+  margin: 0 0 8px;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.sudoku-difficulty__buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.sudoku-difficulty__button {
+  padding: 10px;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+
+  background: #ffffff;
+  color: #475569;
+
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+
+  text-transform: capitalize;
+
+  cursor: pointer;
+
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.sudoku-difficulty__button:hover {
+  border-color: #bfdbfe;
+
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.sudoku-difficulty__button:active {
+  transform: scale(0.95);
+}
+
+.sudoku-difficulty__button--active {
+  border-color: #2563eb;
+
+  background: #2563eb;
+  color: #ffffff;
+
+  box-shadow:
+    0 4px 10px rgba(37, 99, 235, 0.2);
+}
+
+/* =========================================
+   NEW GAME
+========================================= */
+
+.sudoku-new-game {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  width: 100%;
+
+  margin-top: 12px;
+  padding: 12px;
+
+  border: 0;
+  border-radius: 12px;
+
+  background: #0f172a;
+  color: #ffffff;
+
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 2px 5px rgba(15, 23, 42, 0.1);
+
+  transition:
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+.sudoku-new-game:hover {
+  background: #1e293b;
+}
+
+.sudoku-new-game:active {
+  transform: scale(0.98);
+}
+
+.sudoku-new-game:focus-visible {
+  outline: 2px solid #94a3b8;
+  outline-offset: 2px;
+}
+
+/* =========================================
+   WIN MESSAGE
+========================================= */
+
+.sudoku-win {
+  margin-top: 16px;
+  padding: 20px;
+
+  overflow: hidden;
+
+  border: 1px solid #bbf7d0;
+  border-radius: 16px;
+
+  background:
+    linear-gradient(
+      90deg,
+      #f0fdf4,
+      #ecfdf5
+    );
+
+  text-align: center;
+
+  box-shadow:
+    0 2px 5px rgba(15, 23, 42, 0.05);
+}
+
+.sudoku-win__icon {
+  margin-bottom: 8px;
+
+  font-size: 30px;
+}
+
+.sudoku-win h2 {
+  margin: 0;
+
+  color: #166534;
+
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.sudoku-win p {
+  margin: 4px 0 0;
+
+  color: #16a34a;
+
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.sudoku-win__button {
+  margin-top: 16px;
+
+  padding: 10px 20px;
+
+  border: 0;
+  border-radius: 12px;
+
+  background: #16a34a;
+  color: #ffffff;
+
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background-color 150ms ease,
+    transform 150ms ease;
+}
+
+.sudoku-win__button:hover {
+  background: #15803d;
+}
+
+.sudoku-win__button:active {
+  transform: scale(0.95);
+}
+
+/* =========================================
+   FOOTER
+========================================= */
+
+.sudoku-footer {
+  margin: 24px 0 0;
+
+  color: #94a3b8;
+
+  font-size: 12px;
+
+  text-align: center;
+}
+
+/* =========================================
+   ANIMATIONS
+========================================= */
+
+@keyframes sudoku-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-3px);
+  }
+
+  50% {
+    transform: translateX(3px);
+  }
+
+  75% {
+    transform: translateX(-2px);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 480px) {
+  .sudoku-game {
+    padding: 20px 12px 32px;
+  }
+
+  .sudoku-card {
+    padding: 8px;
+    border-radius: 20px;
+  }
+
+  .sudoku-grid {
+    border-radius: 10px;
+  }
+
+  .sudoku-cell {
+    font-size: 15px;
+  }
+
+  .sudoku-header h1 {
+    font-size: 32px;
+  }
+  
 }
+
+/* =========================================
+   NUMBER PAD
+========================================= */
+
+.sudoku-number-pad {
+  margin-top: 16px;
+}
+
+.sudoku-number-pad__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+/* =========================================
+   NUMBER BUTTONS
+========================================= */
+
+.sudoku-number-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  height: 56px;
+
+  padding: 0;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+
+  background: #f8fafc;
+  color: #1e293b;
+
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 700;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.05);
+
+  transition:
+    background-color 100ms ease,
+    border-color 100ms ease,
+    color 100ms ease,
+    transform 100ms ease,
+    box-shadow 100ms ease;
+}
+
+.sudoku-number-button:hover {
+  border-color: #93c5fd;
+
+  background: #eff6ff;
+  color: #2563eb;
+
+  box-shadow:
+    0 2px 5px rgba(37, 99, 235, 0.08);
+}
+
+.sudoku-number-button:active {
+  transform: scale(0.95);
+
+  background: #dbeafe;
+}
+
+.sudoku-number-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* =========================================
+   DELETE BUTTON
+========================================= */
+
+.sudoku-delete-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+
+  width: 100%;
+  height: 48px;
+
+  margin-top: 10px;
+  padding: 0;
+
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+
+  background: #f1f5f9;
+  color: #475569;
+
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease,
+    transform 100ms ease;
+}
+
+.sudoku-delete-button:hover {
+  border-color: #fecaca;
+
+  background: #fef2f2;
+  color: #dc2626;
+}
+
+.sudoku-delete-button:active {
+  transform: scale(0.98);
+}
+
+.sudoku-delete-button:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+.sudoku-delete-button__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* =========================================
+   MOBILE
+========================================= */
+
+@media (max-width: 480px) {
+  .sudoku-number-pad__grid {
+    gap: 8px;
+  }
+
+  .sudoku-number-button {
+    height: 52px;
+    font-size: 18px;
+  }
+
+  .sudoku-delete-button {
+    height: 46px;
+  }
+}
+

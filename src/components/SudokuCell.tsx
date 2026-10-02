@@ -2,54 +2,63 @@
 
 type Props = {
   value: number;
+  wrongValue: number | null;
   row: number;
   col: number;
   isInitial: boolean;
   isSelected: boolean;
+  isWrong: boolean;
+  isInSelectedRow: boolean;
+  isInSelectedCol: boolean;
+  isSameNumber: boolean;
   onClick: () => void;
 };
 
 export default function SudokuCell({
   value,
+  wrongValue,
   row,
   col,
   isInitial,
   isSelected,
+  isWrong,
+  isInSelectedRow,
+  isInSelectedCol,
+  isSameNumber,
   onClick,
 }: Props) {
-  const borderRight =
-    col === 2 || col === 5 ? "border-r-2 border-r-slate-900" : "";
+  const stateClass = isWrong
+    ? "sudoku-cell--wrong"
+    : isSelected
+      ? "sudoku-cell--selected"
+      : isSameNumber
+        ? "sudoku-cell--same"
+        : isInSelectedRow || isInSelectedCol
+          ? "sudoku-cell--related"
+          : isInitial
+            ? "sudoku-cell--initial"
+            : "sudoku-cell--empty";
 
-  const borderBottom =
-    row === 2 || row === 5 ? "border-b-2 border-b-slate-900" : "";
+  const blockClass = `
+    ${col === 2 || col === 5 ? "sudoku-cell--block-right" : ""}
+    ${row === 2 || row === 5 ? "sudoku-cell--block-bottom" : ""}
+  `;
+
+  const displayValue =
+    isWrong && wrongValue !== null
+      ? wrongValue
+      : value !== 0
+        ? value
+        : "";
 
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`
-        flex
-        aspect-square
-        items-center
-        justify-center
-        border
-        border-slate-300
-        text-xl
-        font-semibold
-        ${borderRight}
-        ${borderBottom}
-        ${
-          isSelected
-            ? "bg-blue-200"
-            : "bg-white hover:bg-slate-100"
-        }
-        ${
-          isInitial
-            ? "text-slate-900"
-            : "text-blue-600"
-        }
-      `}
+      aria-label={`Row ${row + 1}, Column ${col + 1}`}
+      className={`sudoku-cell ${stateClass} ${blockClass}`}
     >
-      {value || ""}
+      {displayValue}
     </button>
   );
 }
